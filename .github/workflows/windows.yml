@@ -1,10 +1,12 @@
 name: Windows CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
 
 jobs:
-  build:
-
+  build-deploy:
     runs-on: windows-latest
 
     strategy:
@@ -18,4 +20,6 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install
-    - run: npx nodegui-packer --pack dist
+    - run: npm run build
+    - run: npx nodegui-packer --init TenCha 
+    - run: npx nodegui-packer --pack ./dist
