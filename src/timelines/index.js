@@ -12,10 +12,8 @@ const NotificationParser = require('../tools/notification_parser/index.js');
 
 class Timelines{
   constructor(){
-    const font = new QFont('sans', 9);
     const tabWidget = new QTabWidget();
     tabWidget.setObjectName('timelines');
-    tabWidget.setFont(font);
 
     this.tab_widget = tabWidget;
     this.tabs = [];
@@ -51,7 +49,7 @@ class Timelines{
       id: tab.id,
       name: tab.name,
       source: tab.source,
-      timeline: new Timeline(),
+      timeline: new Timeline(this.font),
       is_auto_select: false,
       post_view: false
     }
@@ -131,7 +129,12 @@ class Timelines{
           if(!tab.timeline.check_exist_item(item.id)) tab.timeline.add_notification(item);
         }else{
           var item = await this.create_note(body, this.users);
-          if(!tab.timeline.check_exist_item(item.id)) tab.timeline.add_note(item);
+          var is_display = true;
+          for(var filter of this.filters){
+            var result = filter(item);
+            if(!result) is_display = false;
+          }
+          if(!tab.timeline.check_exist_item(item.id) && is_display) tab.timeline.add_note(item);
         }
 
         if(tab.is_auto_select){
@@ -147,11 +150,12 @@ class Timelines{
 
   async fix_notes(){
     var notes = this.notes;
-    var limit = 5000;
+    var limit = this.cache_limit;
+    var clear_count = this.cache_clear_count;
     if(Object.keys(this.notes).length < limit) return;
 
     var i = 0;
-    for(var c = 0; c < limit; c++){
+    for(var c = 0; c < clear_count; c++){
       var is_exist = false;
       for(var tab of this.tabs){
         if(tab.timeline.check_exist_item(notes[Object.keys(notes)[i]].id)){
@@ -176,7 +180,7 @@ class Timelines{
       note = _note;
       // TODO: update note
     }else{
-      var note = await new Note(body, user_map, this.emoji_parser);
+      var note = await new Note(body, user_map, this.notes, this.emoji_parser);
       this.notes[body.id] = note;
     }
 
@@ -193,7 +197,7 @@ class Timelines{
       notification = _notification;
       // TODO: update
     }else{
-      notification = await new Notification(body, user_map, this.emoji_parser);
+      notification = await new Notification(body, user_map, this.emoji_parser, this.notes);
       this.notes[body.id] = notification;
     }
 
@@ -266,6 +270,13 @@ class Timelines{
 
   set_desktop_notification(desktop_notification){
     this.desktop_notification = desktop_notification;
+  }
+
+  set_settings(settings){
+    this.cache_limit = settings.cache_limit;
+    this.cache_clear_count = settings.cache_clear_count;
+    this.font = settings.font;
+    this.tab_widget.setFont(new QFont(this.font, 9));
   }
 
   _show_mes_dialog(mes_str){
